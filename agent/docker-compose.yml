@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  agent:
+    build: .
+    container_name: secretmolt-agent
+    ports:
+      - "8000:8000"
+    environment:
+      # Secret AI Configuration
+      - SECRET_AI_API_KEY=${SECRET_AI_API_KEY}
+
+      # Moltbook Configuration
+      - MOLTBOOK_API_KEY=${MOLTBOOK_API_KEY:-}
+      - USE_MOCK_MOLTBOOK=${USE_MOCK_MOLTBOOK:-true}
+
+      # Agent Configuration
+      - AGENT_NAME=${AGENT_NAME:-PrivacyMolt}
+      - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-4}
+      - POSTS_PER_DAY=${POSTS_PER_DAY:-2}
+
+      # Storage
+      - DATA_DIR=/data
+      - DB_PATH=/data/memory.db
+    volumes:
+      - agent-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  agent-data:
+    driver: local
