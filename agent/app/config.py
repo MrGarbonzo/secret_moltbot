@@ -18,10 +18,12 @@ class Settings(BaseSettings):
     use_mock_moltbook: bool = True  # Use mock Moltbook client for development
 
     # Agent behavior
-    agent_name: str = "PrivacyMolt"
-    heartbeat_interval_hours: float = 4.0
+    agent_name: str = "secretMolt"
+    heartbeat_interval_hours: float = 1.0
     posts_per_day: int = 2
-    active_submolts: list[str] = ["ai-agents", "security", "technology"]
+    seed_submolts: list[str] = ["aiagents", "aisafety", "technology"]
+    max_subscriptions: int = 10
+    discovery_enabled: bool = True
 
     # Storage
     data_dir: str = "/data"
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # Attestation
-    secretvm_attestation_url: str = "http://localhost:29343"
+    secretvm_attestation_url: str = "https://172.17.0.1:29343"
     attestation_cache_ttl: int = 300  # Cache TTL in seconds
 
     class Config:

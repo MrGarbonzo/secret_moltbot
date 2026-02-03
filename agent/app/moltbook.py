@@ -139,6 +139,9 @@ class MoltbookClientWrapper:
         results = await self._mock.search(query, limit)
         return [Post(**p.model_dump()) for p in results]
 
+    async def get_submolts(self) -> list[dict]:
+        return await self._mock.get_submolts()
+
     async def close(self) -> None:
         await self._mock.close()
 
@@ -298,6 +301,10 @@ class RealMoltbookClientWrapper:
                     created_at=r.created_at,
                 ))
         return posts
+
+    async def get_submolts(self) -> list[dict]:
+        results = await self._real.get_submolts()
+        return [{"name": s.name, "description": s.description, "subscriber_count": s.subscriber_count} for s in results]
 
     async def close(self) -> None:
         await self._real.close()

@@ -17,7 +17,8 @@ from .personality import (
     get_personality,
     get_decision_prompt,
     get_content_prompt,
-    get_reply_prompt
+    get_reply_prompt,
+    get_discovery_prompt
 )
 
 
@@ -83,6 +84,14 @@ class MoltbookAgent:
             return
 
         await self.memory.initialize()
+
+        # Seed submolts on first boot
+        existing = await self.memory.get_subscribed_submolts()
+        if not existing:
+            for submolt in settings.seed_submolts:
+                await self.memory.subscribe_submolt(submolt, source="seed")
+            log.info("Seeded submolts", submolts=settings.seed_submolts)
+
         self._initialized = True
         log.info("Agent initialized")
 
@@ -129,7 +138,26 @@ class MoltbookAgent:
                     log.error(f"Action failed: {action}", error=str(e))
                     result.errors.append(str(e))
 
-            # 4. Update last heartbeat time
+            # 4. Run submolt discovery periodically (~24 hours)
+            if settings.discovery_enabled:
+                last_discovery = await self.memory.get_config("last_discovery")
+                should_discover = last_discovery is None
+                if not should_discover:
+                    try:
+                        last_dt = datetime.fromisoformat(last_discovery)
+                        hours_since = (datetime.utcnow() - last_dt).total_seconds() / 3600
+                        should_discover = hours_since >= 24
+                    except (ValueError, TypeError):
+                        should_discover = True
+
+                if should_discover:
+                    try:
+                        await self._discover_submolts()
+                        await self.memory.set_config("last_discovery", datetime.utcnow().isoformat())
+                    except Exception as e:
+                        log.warning("Submolt discovery failed", error=str(e))
+
+            # 5. Update last heartbeat time
             await self.memory.set_config("last_heartbeat", datetime.utcnow().isoformat())
 
         except Exception as e:
@@ -140,10 +168,11 @@ class MoltbookAgent:
         return result
 
     async def _fetch_new_posts(self) -> list[Post]:
-        """Fetch posts from active submolts and filter out seen ones."""
+        """Fetch posts from subscribed submolts and filter out seen ones."""
         try:
             all_posts = []
-            for submolt in settings.active_submolts:
+            submolts = await self.memory.get_subscribed_submolts()
+            for submolt in submolts:
                 try:
                     posts = await self.moltbook.get_feed(sort="new", limit=20, submolt=submolt)
                     all_posts.extend(posts)
@@ -166,6 +195,76 @@ class MoltbookAgent:
             return await self.moltbook.get_mentions()
         except Exception as e:
             log.error("Failed to fetch mentions", error=str(e))
+            return []
+
+    async def _discover_submolts(self):
+        """Discover and subscribe to relevant new submolts using the LLM."""
+        current_subs = await self.memory.get_subscribed_submolts()
+
+        if len(current_subs) >= settings.max_subscriptions:
+            log.info("At max subscriptions, skipping discovery", count=len(current_subs))
+            return
+
+        try:
+            all_submolts = await self.moltbook.get_submolts()
+        except Exception as e:
+            log.warning("Failed to fetch submolts list", error=str(e))
+            return
+
+        # Filter out already-subscribed
+        available = [s for s in all_submolts if s["name"] not in current_subs]
+        if not available:
+            log.info("No new submolts to discover")
+            return
+
+        prompt = get_discovery_prompt(available, current_subs, self.personality)
+
+        try:
+            response = self.llm.invoke([
+                system(self.personality),
+                human(prompt)
+            ])
+
+            picked = self._parse_discovery_response(response.content)
+            slots_left = settings.max_subscriptions - len(current_subs)
+            picked = picked[:slots_left]
+
+            available_names = {s["name"] for s in available}
+            for name in picked:
+                if name in available_names:
+                    submolt_info = next(s for s in available if s["name"] == name)
+                    await self.memory.subscribe_submolt(
+                        name,
+                        display_name=name,
+                        description=submolt_info.get("description"),
+                        source="discovered"
+                    )
+                    log.info("Discovered and subscribed to submolt", submolt=name)
+
+        except Exception as e:
+            log.error("Failed to run discovery LLM", error=str(e))
+
+    def _parse_discovery_response(self, response: str) -> list[str]:
+        """Parse LLM discovery response into a list of submolt names."""
+        try:
+            response = response.strip()
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0]
+            elif "```" in response:
+                response = response.split("```")[1].split("```")[0]
+
+            response = response.strip()
+            start_idx = response.find('[')
+            end_idx = response.rfind(']')
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                response = response[start_idx:end_idx + 1]
+
+            data = json.loads(response)
+            if isinstance(data, list):
+                return [str(s) for s in data]
+            return []
+        except (json.JSONDecodeError, Exception) as e:
+            log.warning("Failed to parse discovery response", error=str(e))
             return []
 
     async def _decide_actions(self, posts: list[Post], mentions: list[Mention]) -> list[Action]:

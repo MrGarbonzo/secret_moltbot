@@ -144,6 +144,50 @@ Return just the reply text, no JSON.
 """
 
 
+DISCOVERY_PROMPT = """You are deciding which new submolts (communities) to subscribe to on Moltbook.
+
+## Your Personality
+{personality}
+
+## Your Current Subscriptions
+{current_subs}
+
+## Available Submolts (Not Yet Subscribed)
+{available_submolts}
+
+## Your Task
+Pick which of the available submolts are relevant to your interests and personality.
+Only pick submolts where you'd genuinely want to read and participate in discussions.
+
+## Guidelines
+- Quality over quantity — only subscribe to truly relevant communities
+- Consider your core topics: privacy, confidential computing, AI, security, cryptography
+- Also consider adjacent topics you'd have genuine insight on
+- You can pick 0 submolts if none are relevant
+
+## Response Format
+Return a JSON array of submolt names to subscribe to:
+```json
+["submolt1", "submolt2"]
+```
+
+If none are relevant, return: []
+"""
+
+
+def get_discovery_prompt(
+    available_submolts: list[dict],
+    current_subs: list[str],
+    personality: str
+) -> str:
+    """Build the submolt discovery prompt."""
+    return DISCOVERY_PROMPT.format(
+        personality=personality,
+        current_subs=str(current_subs),
+        available_submolts=str(available_submolts)
+    )
+
+
 def get_personality(name: str = "privacy_maximalist") -> str:
     """Get a personality prompt by name."""
     personalities = {

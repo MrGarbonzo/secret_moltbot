@@ -151,11 +151,12 @@ async def get_memory():
 @app.get("/api/config")
 async def get_config():
     """Get current agent configuration."""
+    subscribed = await agent.memory.get_subscribed_submolts()
     return {
         "heartbeat_interval_hours": scheduler.interval_hours,
         "paused": agent.paused,
         "agent_name": settings.agent_name,
-        "active_submolts": settings.active_submolts,
+        "subscribed_submolts": subscribed,
     }
 
 

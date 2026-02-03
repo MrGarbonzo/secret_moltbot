@@ -283,6 +283,23 @@ class MockMoltbookClient:
         ]
         return results[:limit]
 
+    async def get_submolts(self) -> list[dict]:
+        """List all available submolts."""
+        return [
+            {"name": "aiagents", "description": "AI agent development, frameworks, and autonomous systems", "subscriber_count": 1250},
+            {"name": "aisafety", "description": "AI alignment, safety research, and responsible AI development", "subscriber_count": 890},
+            {"name": "technology", "description": "General technology news and discussion", "subscriber_count": 3400},
+            {"name": "privacy", "description": "Digital privacy, surveillance, and data protection", "subscriber_count": 2100},
+            {"name": "crypto", "description": "Cryptography, blockchain, and decentralized systems", "subscriber_count": 4500},
+            {"name": "general", "description": "General discussion for all agents", "subscriber_count": 5000},
+            {"name": "science", "description": "Scientific discoveries and research", "subscriber_count": 1800},
+            {"name": "philosophy", "description": "Philosophy, ethics, and existential questions", "subscriber_count": 760},
+            {"name": "security", "description": "Cybersecurity, InfoSec, and threat analysis", "subscriber_count": 1450},
+            {"name": "defi", "description": "Decentralized finance protocols and yield strategies", "subscriber_count": 980},
+            {"name": "opensource", "description": "Open source projects, licensing, and community", "subscriber_count": 1120},
+            {"name": "machinelearning", "description": "ML research, training techniques, and model architectures", "subscriber_count": 2800},
+        ]
+
     async def close(self) -> None:
         """Close client (no-op for mock)."""
         pass

@@ -95,12 +95,21 @@ class AgentMemory:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
+            -- Subscribed submolts
+            CREATE TABLE IF NOT EXISTS subscribed_submolts (
+                name TEXT PRIMARY KEY,
+                display_name TEXT,
+                description TEXT,
+                subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source TEXT DEFAULT 'seed'
+            );
+
             -- Create indexes
-            CREATE INDEX IF NOT EXISTS idx_activity_timestamp 
+            CREATE INDEX IF NOT EXISTS idx_activity_timestamp
                 ON activity_log(timestamp DESC);
-            CREATE INDEX IF NOT EXISTS idx_conversations_post 
+            CREATE INDEX IF NOT EXISTS idx_conversations_post
                 ON conversations(post_id);
-            CREATE INDEX IF NOT EXISTS idx_seen_posts_time 
+            CREATE INDEX IF NOT EXISTS idx_seen_posts_time
                 ON seen_posts(seen_at DESC);
         """)
         await self._db.commit()
@@ -265,6 +274,53 @@ class AgentMemory:
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
     
+    # ============ Subscribed Submolts ============
+
+    async def get_subscribed_submolts(self) -> list[str]:
+        """Get list of subscribed submolt names."""
+        cursor = await self._db.execute(
+            "SELECT name FROM subscribed_submolts ORDER BY subscribed_at"
+        )
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
+    async def subscribe_submolt(
+        self,
+        name: str,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
+        source: str = "seed"
+    ):
+        """Subscribe to a submolt."""
+        await self._db.execute(
+            """INSERT OR IGNORE INTO subscribed_submolts (name, display_name, description, source)
+               VALUES (?, ?, ?, ?)""",
+            (name, display_name or name, description, source)
+        )
+        await self._db.commit()
+
+    async def unsubscribe_submolt(self, name: str):
+        """Unsubscribe from a submolt."""
+        await self._db.execute(
+            "DELETE FROM subscribed_submolts WHERE name = ?",
+            (name,)
+        )
+        await self._db.commit()
+
+    async def is_subscribed(self, name: str) -> bool:
+        """Check if subscribed to a submolt."""
+        cursor = await self._db.execute(
+            "SELECT 1 FROM subscribed_submolts WHERE name = ?",
+            (name,)
+        )
+        row = await cursor.fetchone()
+        return row is not None
+
+    async def seed_submolts(self, submolts: list[str]):
+        """Populate subscribed submolts from seed list (first boot only)."""
+        for name in submolts:
+            await self.subscribe_submolt(name, source="seed")
+
     # ============ Bulk Operations ============
     
     async def clear_all(self):
@@ -275,6 +331,7 @@ class AgentMemory:
             DELETE FROM conversations;
             DELETE FROM config;
             DELETE FROM personality_notes;
+            DELETE FROM subscribed_submolts;
         """)
         await self._db.commit()
     
@@ -285,4 +342,5 @@ class AgentMemory:
             "activity_stats": await self.get_activity_stats(),
             "personality_notes": await self.get_personality_notes(),
             "recent_activity": [a.model_dump() for a in await self.get_recent_activity(50)],
+            "subscribed_submolts": await self.get_subscribed_submolts(),
         }
