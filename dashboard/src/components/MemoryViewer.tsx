@@ -1,29 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useMemory } from '@/lib/hooks';
-import { Card, CardHeader, CardTitle, Button, Badge, Spinner } from '@/components/ui';
-import { api } from '@/lib/api';
+import { Card, CardHeader, CardTitle, Badge, Spinner } from '@/components/ui';
 
 export function MemoryViewer() {
-  const { memory, isLoading, isError, refresh } = useMemory();
-  const [isClearing, setIsClearing] = useState(false);
-
-  const handleClear = async () => {
-    if (!confirm('Are you sure you want to clear all memory? This cannot be undone.')) {
-      return;
-    }
-
-    setIsClearing(true);
-    try {
-      await api.clearMemory();
-      refresh();
-    } catch (error) {
-      alert('Failed to clear memory');
-    } finally {
-      setIsClearing(false);
-    }
-  };
+  const { memory, isLoading, isError } = useMemory();
 
   if (isLoading) {
     return (
@@ -51,9 +32,6 @@ export function MemoryViewer() {
       <Card>
         <CardHeader>
           <CardTitle>Memory Overview</CardTitle>
-          <Button variant="danger" size="sm" onClick={handleClear} isLoading={isClearing}>
-            Clear All
-          </Button>
         </CardHeader>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
