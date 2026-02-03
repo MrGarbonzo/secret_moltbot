@@ -12,15 +12,23 @@ from .config import settings
 
 log = structlog.get_logger()
 
-# Secret AI OpenAI-compatible endpoint
-SECRET_AI_BASE_URL = "https://secretai-rytn.scrtlabs.com:21434/v1"
+
+def _get_secret_ai_base_url() -> str:
+    """Get Secret AI OpenAI-compatible endpoint URL."""
+    base = settings.secret_ai_base_url.rstrip("/")
+    # Ensure /v1 suffix for OpenAI compatibility
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+    return base
+
 
 # Available models from Secret AI
 SECRET_AI_MODELS = [
     "deepseek-r1:70b",
     "gemma3:4b",
     "llama3.2-vision:latest",
-    "llama3.3:70b"
+    "llama3.3:70b",
+    "qwen3:8b",
 ]
 
 
@@ -67,6 +75,7 @@ class SecretAIClient:
         self._client = None
         self._async_client = None
         self._model = None
+        self._base_url = None
         self._initialized = False
 
     def _initialize(self):
@@ -101,22 +110,25 @@ class SecretAIClient:
                 "X-API-Key": self.api_key
             }
 
+            base_url = _get_secret_ai_base_url()
+
             self._client = OpenAI(
-                base_url=SECRET_AI_BASE_URL,
+                base_url=base_url,
                 api_key=self.api_key,
                 default_headers=default_headers
             )
 
             self._async_client = AsyncOpenAI(
-                base_url=SECRET_AI_BASE_URL,
+                base_url=base_url,
                 api_key=self.api_key,
                 default_headers=default_headers
             )
 
             self._initialized = True
+            self._base_url = base_url
             log.info("Secret AI client initialized successfully",
                      model=self._model,
-                     base_url=SECRET_AI_BASE_URL)
+                     base_url=base_url)
 
         except ImportError:
             log.error("openai package not installed. Install with: pip install openai")
@@ -227,6 +239,11 @@ class SecretAIClient:
     def model(self) -> str:
         """Get the model name."""
         return self._model or self.model_name
+
+    @property
+    def base_url(self) -> str:
+        """Get the Secret AI base URL."""
+        return self._base_url or _get_secret_ai_base_url()
 
 
 # ============ Convenience Functions ============

@@ -140,11 +140,18 @@ class MoltbookAgent:
         return result
 
     async def _fetch_new_posts(self) -> list[Post]:
-        """Fetch posts and filter out seen ones."""
+        """Fetch posts from active submolts and filter out seen ones."""
         try:
-            posts = await self.moltbook.get_feed(sort="new", limit=50)
+            all_posts = []
+            for submolt in settings.active_submolts:
+                try:
+                    posts = await self.moltbook.get_feed(sort="new", limit=20, submolt=submolt)
+                    all_posts.extend(posts)
+                except Exception as e:
+                    log.warning("Failed to fetch submolt feed", submolt=submolt, error=str(e))
+
             new_posts = []
-            for post in posts:
+            for post in all_posts:
                 if not await self.memory.is_seen(post.id):
                     new_posts.append(post)
                     await self.memory.mark_seen(post.id)
