@@ -1,6 +1,6 @@
 // API fetch wrapper with error handling
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_URL = '/api/proxy';
 
 export class ApiError extends Error {
   status: number;
