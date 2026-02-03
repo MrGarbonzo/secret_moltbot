@@ -49,3 +49,28 @@ jobs:
           tags: |
             ghcr.io/mrgarbonzo/secret_moltbot/dashboard:latest
             ghcr.io/mrgarbonzo/secret_moltbot/dashboard:${{ github.sha }}
+
+  update-compose:
+    runs-on: ubuntu-latest
+    needs: [build-agent, build-dashboard]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update docker-compose.secretvm.yml image tags
+        run: |
+          sed -i "s|ghcr.io/mrgarbonzo/secret_moltbot/agent:.*|ghcr.io/mrgarbonzo/secret_moltbot/agent:${{ github.sha }}|" docker-compose.secretvm.yml
+          sed -i "s|ghcr.io/mrgarbonzo/secret_moltbot/dashboard:.*|ghcr.io/mrgarbonzo/secret_moltbot/dashboard:${{ github.sha }}|" docker-compose.secretvm.yml
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docker-compose.secretvm.yml
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "ci: update SecretVM image tags to ${{ github.sha }} [skip ci]"
+          git push
