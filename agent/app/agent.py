@@ -190,6 +190,8 @@ class MoltbookAgent:
         if self.state != AgentState.REGISTERED or self.moltbook is None:
             return False
 
+        # Try /agents/me first, fall back to /agents/status
+        # Moltbook returns 401 on /agents/me until the agent is claimed
         try:
             profile = await self.moltbook.get_me()
             if profile.claimed:
@@ -197,6 +199,19 @@ class MoltbookAgent:
                 self.state = AgentState.VERIFIED
                 log.info("Agent verification confirmed!")
                 return True
+        except Exception as e:
+            log.debug("get_me check failed, trying status endpoint", error=str(e))
+
+        try:
+            status = await self.moltbook._real.get_status()
+            claimed = status.get("claimed", False) or status.get("status") == "claimed"
+            if claimed:
+                await self.memory.set_config("moltbook_verified", True)
+                self.state = AgentState.VERIFIED
+                log.info("Agent verification confirmed via status endpoint!")
+                return True
+            else:
+                log.info("Agent not yet claimed", status=status)
         except Exception as e:
             log.warning("Verification check failed", error=str(e))
 
