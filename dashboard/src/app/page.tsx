@@ -1,8 +1,13 @@
 'use client';
 
+import { useStatus } from '@/lib/hooks';
 import { StatusCard, ActivityFeed, AttestationCard } from '@/components';
 
 export default function DashboardPage() {
+  const { status } = useStatus();
+
+  const isVerified = status?.state === 'verified';
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -12,12 +17,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StatusCard />
-        <AttestationCard />
-      </div>
-
-      <ActivityFeed />
+      {isVerified ? (
+        <>
+          {/* Verified: full dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <StatusCard />
+            <AttestationCard />
+          </div>
+          <ActivityFeed />
+        </>
+      ) : (
+        /* Not verified: just the status card (handles all states) */
+        <div className="max-w-lg mx-auto">
+          <StatusCard />
+        </div>
+      )}
     </div>
   );
 }

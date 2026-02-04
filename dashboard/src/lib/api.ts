@@ -41,8 +41,12 @@ export async function fetchApi<T>(
 // NOTE: This is a MONITORING-ONLY API. Control endpoints have been removed
 // to ensure the agent is provably autonomous.
 export const api = {
-  // Status
+  // Status (state-aware — drives dashboard view)
   getStatus: () => fetchApi<import('./types').StatusResponse>('/status'),
+
+  // Check verification (call after tweeting the code)
+  checkVerification: () =>
+    fetchApi<import('./types').VerificationResponse>('/check-verification', { method: 'POST' }),
 
   // Activity
   getActivity: (limit = 20) =>
@@ -63,14 +67,4 @@ export const api = {
 
   // Attestation
   getAttestation: () => fetchApi<import('./types').AttestationData>('/attestation'),
-
-  // Actions (preview only - does not post)
-  triggerHeartbeat: () =>
-    fetchApi<import('./types').HeartbeatResult>('/heartbeat', { method: 'POST' }),
-
-  generateContent: (topic?: string) =>
-    fetchApi<import('./types').GeneratedContent>(
-      `/generate${topic ? `?topic=${encodeURIComponent(topic)}` : ''}`,
-      { method: 'POST' }
-    ),
 };

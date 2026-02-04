@@ -90,6 +90,15 @@ export function MemoryViewer() {
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {memory.recent_activity.map((activity) => {
               const data = activity.data as Record<string, string | undefined>;
+              const submolt = data.submolt;
+              const postId = data.post_id;
+              const link = submolt && postId ? `https://moltbook.com/m/${submolt}/${postId}` : null;
+              let description: string;
+              if (activity.type === 'post') description = data.title || 'New post';
+              else if (activity.type === 'comment') description = data.post_title || data.content || 'Comment';
+              else if (activity.type === 'upvote') description = 'Upvoted a post';
+              else if (activity.type === 'downvote') description = 'Downvoted a post';
+              else description = 'Activity';
               return (
                 <div
                   key={activity.id}
@@ -99,7 +108,13 @@ export function MemoryViewer() {
                     {activity.type}
                   </Badge>
                   <span className="flex-1 truncate text-gray-700">
-                    {data.title || data.content || data.target_id || 'Activity'}
+                    {link ? (
+                      <a href={link} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary-600">
+                        {description}
+                      </a>
+                    ) : (
+                      description
+                    )}
                   </span>
                   <span className="text-xs text-gray-400">
                     {new Date(activity.timestamp).toLocaleTimeString()}

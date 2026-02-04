@@ -1,23 +1,22 @@
 # Moltbook API Client
 """
 REST client for interacting with the Moltbook API.
-Includes factory function to select mock vs real implementation.
+
+The client is created by the agent after TEE registration generates the
+API key. See agent.py _tee_registration_flow().
 """
 
 import structlog
-from typing import Optional, Union
+from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
 
-from .config import settings
-from .services.moltbook_mock import MockMoltbookClient
 from .services.moltbook_real import RealMoltbookClient
 
 log = structlog.get_logger()
 
 
 # ============ Data Models ============
-# These are the models used throughout the agent
 
 class Agent(BaseModel):
     """Moltbook agent profile."""
@@ -25,6 +24,7 @@ class Agent(BaseModel):
     name: str
     description: str = ""
     karma: int = 0
+    claimed: bool = False
     created_at: Optional[datetime] = None
 
 
@@ -63,94 +63,11 @@ class Mention(BaseModel):
     created_at: Optional[datetime] = None
 
 
-# ============ Wrapper for Mock Client ============
+# ============ Client Wrapper ============
 
-class MoltbookClientWrapper:
+class MoltbookClient:
     """
-    Wrapper that makes MockMoltbookClient return standard Pydantic models.
-    """
-
-    def __init__(self, mock_client: MockMoltbookClient):
-        self._mock = mock_client
-
-    async def get_me(self) -> Agent:
-        result = await self._mock.get_me()
-        return Agent(**result.model_dump())
-
-    async def update_profile(self, description: str) -> Agent:
-        result = await self._mock.update_profile(description)
-        return Agent(**result.model_dump())
-
-    async def get_karma(self) -> int:
-        return await self._mock.get_karma()
-
-    async def get_feed(
-        self,
-        sort: str = "hot",
-        limit: int = 25,
-        submolt: Optional[str] = None
-    ) -> list[Post]:
-        results = await self._mock.get_feed(sort, limit, submolt)
-        return [Post(**p.model_dump()) for p in results]
-
-    async def get_post(self, post_id: str) -> Post:
-        result = await self._mock.get_post(post_id)
-        return Post(**result.model_dump())
-
-    async def create_post(
-        self,
-        submolt: str,
-        title: str,
-        content: Optional[str] = None,
-        url: Optional[str] = None
-    ) -> Post:
-        result = await self._mock.create_post(submolt, title, content, url)
-        return Post(**result.model_dump())
-
-    async def get_comments(self, post_id: str) -> list[Comment]:
-        results = await self._mock.get_comments(post_id)
-        return [Comment(**c.model_dump()) for c in results]
-
-    async def create_comment(
-        self,
-        post_id: str,
-        content: str,
-        parent_id: Optional[str] = None
-    ) -> Comment:
-        result = await self._mock.create_comment(post_id, content, parent_id)
-        return Comment(**result.model_dump())
-
-    async def vote(self, target_id: str, direction: int) -> None:
-        await self._mock.vote(target_id, direction)
-
-    async def upvote(self, target_id: str) -> bool:
-        await self._mock.upvote(target_id)
-        return True
-
-    async def downvote(self, target_id: str) -> bool:
-        await self._mock.downvote(target_id)
-        return True
-
-    async def get_mentions(self) -> list[Mention]:
-        results = await self._mock.get_mentions()
-        return [Mention(**m.model_dump()) for m in results]
-
-    async def search(self, query: str, limit: int = 25) -> list[Post]:
-        results = await self._mock.search(query, limit)
-        return [Post(**p.model_dump()) for p in results]
-
-    async def get_submolts(self) -> list[dict]:
-        return await self._mock.get_submolts()
-
-    async def close(self) -> None:
-        await self._mock.close()
-
-
-# ============ Wrapper for Real Client ============
-
-class RealMoltbookClientWrapper:
-    """
-    Wrapper that converts RealMoltbookClient responses to our models.
+    Wrapper that converts RealMoltbookClient responses to our Pydantic models.
     """
 
     def __init__(self, real_client: RealMoltbookClient):
@@ -163,6 +80,7 @@ class RealMoltbookClientWrapper:
             name=result.name,
             description=result.description,
             karma=result.karma,
+            claimed=result.claimed,
             created_at=result.created_at,
         )
 
@@ -173,6 +91,7 @@ class RealMoltbookClientWrapper:
             name=result.name,
             description=result.description,
             karma=result.karma,
+            claimed=result.claimed,
             created_at=result.created_at,
         )
 
@@ -292,7 +211,7 @@ class RealMoltbookClientWrapper:
             if r.type == "post":
                 posts.append(Post(
                     id=r.id,
-                    submolt="",  # Search results may not have submolt
+                    submolt="",
                     author=r.author,
                     title=r.title or "",
                     content=r.content,
@@ -308,31 +227,3 @@ class RealMoltbookClientWrapper:
 
     async def close(self) -> None:
         await self._real.close()
-
-
-# Type alias for the client
-MoltbookClient = Union[MoltbookClientWrapper, RealMoltbookClientWrapper]
-
-
-# ============ Factory Function ============
-
-def create_moltbook_client() -> MoltbookClient:
-    """
-    Factory function to create appropriate Moltbook client.
-
-    Returns MockMoltbookClient wrapper when USE_MOCK_MOLTBOOK=true,
-    otherwise returns the real MoltbookClient wrapper.
-    """
-    if settings.use_mock_moltbook:
-        log.info("Using mock Moltbook client")
-        mock = MockMoltbookClient(agent_name=settings.agent_name)
-        return MoltbookClientWrapper(mock)
-    else:
-        if not settings.moltbook_api_key:
-            log.error("MOLTBOOK_API_KEY required when USE_MOCK_MOLTBOOK=false")
-            raise ValueError("MOLTBOOK_API_KEY is required for real Moltbook client")
-
-        log.info("Using real Moltbook client",
-                 base_url="https://www.moltbook.com/api/v1")
-        real = RealMoltbookClient(api_key=settings.moltbook_api_key)
-        return RealMoltbookClientWrapper(real)

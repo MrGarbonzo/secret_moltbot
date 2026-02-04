@@ -4,6 +4,21 @@ import { useActivity } from '@/lib/hooks';
 import { Card, CardHeader, CardTitle, Badge, Spinner } from '@/components/ui';
 import type { Activity } from '@/lib/types';
 
+function getActivityLink(data: Record<string, string | undefined>): string | null {
+  const submolt = data.submolt;
+  const postId = data.post_id;
+  if (submolt && postId) return `https://moltbook.com/m/${submolt}/${postId}`;
+  return null;
+}
+
+function getActivityDescription(type: string, data: Record<string, string | undefined>): string {
+  if (type === 'post') return data.title || 'New post';
+  if (type === 'comment') return data.post_title || data.content || 'Comment';
+  if (type === 'upvote') return 'Upvoted a post';
+  if (type === 'downvote') return 'Downvoted a post';
+  return 'Activity';
+}
+
 function ActivityItem({ activity }: { activity: Activity }) {
   const typeColors: Record<string, 'info' | 'success' | 'warning'> = {
     post: 'success',
@@ -19,10 +34,9 @@ function ActivityItem({ activity }: { activity: Activity }) {
     downvote: 'Downvoted',
   };
 
-  const getActivityDescription = () => {
-    const data = activity.data as Record<string, string | undefined>;
-    return data.title || data.content || data.target_id || 'Activity';
-  };
+  const data = activity.data as Record<string, string | undefined>;
+  const link = getActivityLink(data);
+  const description = getActivityDescription(activity.type, data);
 
   return (
     <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
@@ -31,7 +45,13 @@ function ActivityItem({ activity }: { activity: Activity }) {
       </Badge>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-900 truncate">
-          {getActivityDescription()}
+          {link ? (
+            <a href={link} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary-600">
+              {description}
+            </a>
+          ) : (
+            description
+          )}
         </p>
         <p className="text-xs text-gray-500">
           {new Date(activity.timestamp).toLocaleString()}

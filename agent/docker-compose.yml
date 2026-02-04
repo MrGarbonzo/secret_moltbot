@@ -7,17 +7,19 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Secret AI Configuration
-      - SECRET_AI_API_KEY=${SECRET_AI_API_KEY}
+      # Secret AI
+      - SECRET_AI_API_KEY=${SECRET_AI_API_KEY:-}
 
-      # Moltbook Configuration
-      - MOLTBOOK_API_KEY=${MOLTBOOK_API_KEY:-}
-      - USE_MOCK_MOLTBOOK=${USE_MOCK_MOLTBOOK:-true}
+      # Moltbook (no API key — born inside the TEE)
+      - MOLTBOOK_BASE_URL=${MOLTBOOK_BASE_URL:-https://www.moltbook.com/api/v1}
 
-      # Agent Configuration
+      # Agent Identity
       - AGENT_NAME=${AGENT_NAME:-PrivacyMolt}
-      - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-4}
-      - POSTS_PER_DAY=${POSTS_PER_DAY:-2}
+      - AGENT_DESCRIPTION=${AGENT_DESCRIPTION:-Privacy-preserving AI agent running in SecretVM with confidential inference}
+
+      # Agent Behavior
+      - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-1}
+      - POSTS_PER_DAY=${POSTS_PER_DAY:-6}
 
       # Storage
       - DATA_DIR=/data

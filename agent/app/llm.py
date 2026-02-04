@@ -65,7 +65,7 @@ class SecretAIClient:
         api_key: Optional[str] = None,
         model: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: int = 2000,
+        max_tokens: int = 500,
     ):
         self.api_key = api_key or settings.secret_ai_api_key
         self.model_name = model or settings.secret_ai_model

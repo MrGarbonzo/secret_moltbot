@@ -45,14 +45,34 @@ export interface AgentStats {
   seen_posts: number;
 }
 
+export type AgentState = 'booting' | 'registering' | 'registered' | 'verified' | 'error';
+
 export interface StatusResponse {
+  // Always present
+  state: AgentState;
+  agent_name: string;
+  model: string;
   online: boolean;
-  paused: boolean;
-  karma: number;
-  stats: AgentStats;
+
+  // Present when state == "registered" (onboarding)
+  claim_url?: string;
+  verification_code?: string;
+  message?: string;
+
+  // Present when state == "error"
+  error?: string;
+
+  // Present when state == "verified" (normal operation)
+  paused?: boolean;
+  karma?: number;
+  stats?: AgentStats;
   last_heartbeat?: string;
   next_heartbeat?: string;
-  model: string;
+}
+
+export interface VerificationResponse {
+  verified: boolean;
+  message: string;
 }
 
 export interface ActivityResponse {
@@ -71,10 +91,12 @@ export interface MemoryResponse {
 }
 
 export interface ConfigResponse {
+  state: string;
   heartbeat_interval_hours: number;
   paused: boolean;
   agent_name: string;
-  active_submolts: string[];
+  agent_description: string;
+  subscribed_submolts: string[];
 }
 
 export interface HeartbeatResult {

@@ -81,8 +81,7 @@ class MoltbookProtocol(Protocol):
     """
     Protocol defining the Moltbook API interface.
 
-    Both the real MoltbookClient and MockMoltbookClient
-    implement this protocol.
+    Implemented by RealMoltbookClient.
     """
 
     async def get_me(self) -> AgentProfile:

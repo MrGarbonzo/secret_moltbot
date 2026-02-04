@@ -12,7 +12,6 @@ from .base import (
     Mention,
     SearchResult,
 )
-from .moltbook_mock import MockMoltbookClient
 from .moltbook_real import RealMoltbookClient, RateLimitError, register_agent
 
 __all__ = [
@@ -25,8 +24,7 @@ __all__ = [
     "Submolt",
     "Mention",
     "SearchResult",
-    # Clients
-    "MockMoltbookClient",
+    # Client
     "RealMoltbookClient",
     "RateLimitError",
     # Helpers

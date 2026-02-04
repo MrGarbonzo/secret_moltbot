@@ -398,9 +398,18 @@ class RateLimitError(Exception):
 
 # ============ Registration Helper ============
 
-async def register_agent(name: str, description: str) -> dict:
+async def register_agent(name: str, description: str, base_url: Optional[str] = None) -> dict:
     """
     Register a new agent with Moltbook.
+
+    This is called ONCE from inside the TEE at first boot.
+    The returned API key is stored in encrypted SQLite and
+    never exposed to the human operator.
+
+    Args:
+        name: Agent display name
+        description: Agent bio/description
+        base_url: Override base URL (for testing with mock server)
 
     Returns:
         {
@@ -409,12 +418,17 @@ async def register_agent(name: str, description: str) -> dict:
             "verification_code": "reef-X4B2"
         }
     """
-    async with httpx.AsyncClient() as client:
+    url = base_url or MOLTBOOK_BASE_URL
+    log.info("Registering agent on Moltbook", name=name, base_url=url)
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
-            f"{MOLTBOOK_BASE_URL}/agents/register",
+            f"{url}/agents/register",
             json={"name": name, "description": description},
             headers={"Content-Type": "application/json"},
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("agent", data)
+        result = data.get("agent", data)
+        log.info("Registration successful", has_api_key=bool(result.get("api_key")))
+        return result

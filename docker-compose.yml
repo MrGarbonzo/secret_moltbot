@@ -40,6 +40,7 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://agent:8000/api
+      - AGENT_URL=http://agent:8000
     depends_on:
       agent:
         condition: service_healthy
