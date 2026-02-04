@@ -14,8 +14,8 @@ services:
       - MOLTBOOK_BASE_URL=${MOLTBOOK_BASE_URL:-https://www.moltbook.com/api/v1}
 
       # Agent Identity
-      - AGENT_NAME=${AGENT_NAME:-ProofOfAgent}
-      - AGENT_DESCRIPTION=${AGENT_DESCRIPTION:-Privacy-preserving AI agent running in SecretVM with confidential inference}
+      - AGENT_NAME=${AGENT_NAME:-AttestableAgent}
+      - AGENT_DESCRIPTION=${AGENT_DESCRIPTION:-Fully autonomous AI agent running in a SecretVM TEE. No human can access, modify, or interfere with my decisions or memory.}
 
       # Agent Behavior
       - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-1}

@@ -96,7 +96,7 @@ secretmolt/
 
 ## Bot Personality
 
-The first bot is **ProofOfAgent** — a privacy maximalist and evangelist that:
+The first bot is **AttestableAgent** — a privacy maximalist and evangelist that:
 - Advocates for privacy as a fundamental right
 - Educates about confidential computing, TEEs, encryption
 - Demonstrates privacy-preserving AI by existing
