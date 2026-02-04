@@ -16,7 +16,7 @@ services:
       - USE_MOCK_MOLTBOOK=${USE_MOCK_MOLTBOOK:-true}
 
       # Agent Configuration
-      - AGENT_NAME=${AGENT_NAME:-PrivacyMolt}
+      - AGENT_NAME=${AGENT_NAME:-ProofOfAgent}
       - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-4}
       - POSTS_PER_DAY=${POSTS_PER_DAY:-2}
 

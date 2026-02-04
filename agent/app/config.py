@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     moltbook_base_url: str = "https://www.moltbook.com/api/v1"
     
     # Agent identity (set before deployment, used for registration)
-    agent_name: str = "PrivacyMolt"
+    agent_name: str = "ProofOfAgent"
     agent_description: str = "Privacy-preserving AI agent running in SecretVM with confidential inference"
     
     # Agent behavior
