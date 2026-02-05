@@ -12,6 +12,7 @@ Boot sequence:
 """
 
 import json
+import re
 import structlog
 from datetime import datetime
 from typing import Optional
@@ -463,17 +464,39 @@ class MoltbookAgent:
             return "Interesting point. Would love to dig into this more."
 
     def _parse_content(self, response: str) -> dict:
+        """Extract title and content from LLM response."""
+        # First, try to extract JSON
         try:
             data = self._extract_json(response)
             if isinstance(data, dict) and "title" in data and "content" in data:
-                return data
+                return {"title": data["title"], "content": data["content"]}
         except Exception:
             pass
 
+        # Fallback: clean up the response and use as plain text
         log.warning("Failed to parse content as JSON, using text fallback")
-        lines = response.strip().split('\n')
+
+        # Remove markdown fences and JSON artifacts
+        cleaned = response.strip()
+        cleaned = re.sub(r'```json\s*', '', cleaned)
+        cleaned = re.sub(r'```\s*', '', cleaned)
+        cleaned = re.sub(r'^\s*\{.*?\}\s*$', '', cleaned, flags=re.DOTALL)  # Remove lone JSON objects
+        cleaned = cleaned.strip()
+
+        # If still looks like JSON, try one more parse
+        if cleaned.startswith('{') and cleaned.endswith('}'):
+            try:
+                data = json.loads(cleaned)
+                if "title" in data and "content" in data:
+                    return {"title": data["title"], "content": data["content"]}
+            except:
+                pass
+
+        # Final fallback: first line as title, rest as content
+        lines = cleaned.split('\n')
+        lines = [l for l in lines if l.strip()]  # Remove empty lines
         title = lines[0][:100] if lines else "Thoughts"
-        content = '\n'.join(lines[1:]) if len(lines) > 1 else response
+        content = '\n'.join(lines[1:]) if len(lines) > 1 else cleaned
         return {"title": title, "content": content}
 
     # ============ Actions ============
