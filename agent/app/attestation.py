@@ -62,13 +62,21 @@ async def get_secretvm_cpu_quote() -> dict:
             response.raise_for_status()
             content = response.text
 
-            # Parse the quote from the HTML
+            # Try regex-based label parsing first
             quote_data = _parse_cpu_quote(content)
 
-            # Also extract the raw quote from <pre> tag if available
+            # Extract the raw quote from <pre> tag
             quote_match = re.search(r'<pre[^>]*id="quoteTextarea"[^>]*>(.*?)</pre>', content, re.DOTALL)
             if quote_match:
-                quote_data["raw_quote"] = quote_match.group(1).strip()[:500]
+                raw_hex = quote_match.group(1).strip()
+                quote_data["raw_quote"] = raw_hex
+
+                # If regex parsing returned empty fields, parse from raw TDX quote
+                if not quote_data.get("rtmr3"):
+                    parsed = _parse_raw_tdx_quote(raw_hex)
+                    for key, value in parsed.items():
+                        if value and not quote_data.get(key):
+                            quote_data[key] = value
 
             return quote_data
 
@@ -541,6 +549,55 @@ async def create_birth_certificate(
 
 
 # ============ Parsing Helpers ============
+
+
+def _parse_raw_tdx_quote(raw_hex: str) -> dict:
+    """
+    Parse Intel TDX quote fields from raw hex at standard byte offsets.
+
+    TDX Quote v4 layout:
+      Header:     48 bytes  (hex chars 0-95)
+      Report body starts at byte 48 (hex char 96):
+        TEE_TCB_SVN:    offset   0, 16 bytes
+        MRSEAM:         offset  16, 48 bytes
+        MRSIGNERSEAM:   offset  64, 48 bytes
+        SEAM_ATTRIBUTES:offset 112,  8 bytes
+        TD_ATTRIBUTES:  offset 120,  8 bytes
+        XFAM:           offset 128,  8 bytes
+        MRTD:           offset 136, 48 bytes
+        MRCONFIGID:     offset 184, 48 bytes
+        MROWNER:        offset 232, 48 bytes
+        MROWNERCONFIG:  offset 280, 48 bytes
+        RTMR0:          offset 328, 48 bytes
+        RTMR1:          offset 376, 48 bytes
+        RTMR2:          offset 424, 48 bytes
+        RTMR3:          offset 472, 48 bytes
+        REPORTDATA:     offset 520, 64 bytes
+    """
+    # Strip any whitespace/newlines that may be in the hex
+    clean = re.sub(r'\s+', '', raw_hex)
+
+    # Header is 48 bytes = 96 hex chars; body starts after that
+    body_start = 96
+
+    def extract(body_offset: int, size: int) -> str:
+        start = body_start + body_offset * 2
+        end = start + size * 2
+        if end <= len(clean):
+            return clean[start:end]
+        return ""
+
+    return {
+        "tcb_svn": extract(0, 16),
+        "mrseam": extract(16, 48),
+        "mrtd": extract(136, 48),
+        "rtmr0": extract(328, 48),
+        "rtmr1": extract(376, 48),
+        "rtmr2": extract(424, 48),
+        "rtmr3": extract(472, 48),
+        "reportdata": extract(520, 64),
+    }
+
 
 def _parse_cpu_quote(html_content: str) -> dict:
     """
