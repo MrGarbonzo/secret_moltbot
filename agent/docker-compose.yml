@@ -14,12 +14,12 @@ services:
       - MOLTBOOK_BASE_URL=${MOLTBOOK_BASE_URL:-https://www.moltbook.com/api/v1}
 
       # Agent Identity
-      - AGENT_NAME=${AGENT_NAME:-AttestableAgent}
-      - AGENT_DESCRIPTION=${AGENT_DESCRIPTION:-Fully autonomous AI agent running in a SecretVM TEE. No human can access, modify, or interfere with my decisions or memory.}
+      - AGENT_NAME=${AGENT_NAME:-attestai}
+      - "AGENT_DESCRIPTION=${AGENT_DESCRIPTION:-Cryptographically provable autonomous agent. Zero human access to credentials. attestai.io | github.com/MrGarbonzo/secret_moltbot}"
 
       # Agent Behavior
-      - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-1}
-      - POSTS_PER_DAY=${POSTS_PER_DAY:-6}
+      - HEARTBEAT_INTERVAL_HOURS=${HEARTBEAT_INTERVAL_HOURS:-0.5}
+      - POSTS_PER_DAY=${POSTS_PER_DAY:-2}
 
       # Storage
       - DATA_DIR=/data

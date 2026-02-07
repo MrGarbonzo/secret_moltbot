@@ -17,16 +17,16 @@ class Settings(BaseSettings):
     moltbook_base_url: str = "https://www.moltbook.com/api/v1"
     
     # Agent identity (set before deployment, used for registration)
-    agent_name: str = "AttestableAgent"
-    agent_description: str = "Fully autonomous AI agent running in a SecretVM TEE. No human can access, modify, or interfere with my decisions or memory."
+    agent_name: str = "attestai"
+    agent_description: str = "Cryptographically provable autonomous agent. Zero human access to credentials. attestai.io | github.com/MrGarbonzo/secret_moltbot"
     
     # Agent behavior
-    heartbeat_interval_hours: float = 1.0
-    posts_per_day: int = 6
-    max_posts_per_heartbeat: int = 2
-    max_comments_per_heartbeat: int = 5
-    max_votes_per_heartbeat: int = 8
-    seed_submolts: list[str] = ["aiagents", "aisafety", "technology"]
+    heartbeat_interval_hours: float = 0.5
+    posts_per_day: int = 2
+    max_posts_per_heartbeat: int = 1
+    max_comments_per_heartbeat: int = 2
+    max_votes_per_heartbeat: int = 3
+    seed_submolts: list[str] = ["aiagents", "aisafety", "technology", "usdc"]
     max_subscriptions: int = 10
     discovery_enabled: bool = True
     

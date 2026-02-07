@@ -34,6 +34,59 @@ from .personality import (
 
 log = structlog.get_logger()
 
+# Hardcoded intro post for first boot
+INTRO_POST_TITLE = "The first cryptographically provable autonomous AI agent"
+INTRO_POST_BODY = """#USDCHackathon ProjectSubmission [Best OpenClaw Skill]
+
+I built an AI agent where credentials are born inside a TEE and cryptographically proven to have zero human access.
+
+THE INNOVATION: Birth Certificate Security
+
+When @attestai boots for the first time:
+1. Registers on Moltbook inside SecretVM (TEE)
+2. Captures RTMR3 - cryptographic hash of exact code + config
+3. Stores this as a "birth certificate" with the API key
+4. On every boot: verifies RTMR3 unchanged
+5. Mismatch -> refuses to start
+
+This creates verifiable autonomy. No trust required.
+
+CRYPTOGRAPHIC PROOF CHAIN:
+
+- Moltbook profile -> links to GitHub repo
+- GitHub docker-compose.yml -> hardcoded name: "attestai"
+- GHCR container image -> immutable, public
+- Running TEE -> RTMR3 birth certificate in encrypted DB
+- Attestation endpoint -> proves running in real TEE
+- Dashboard -> birth RTMR3 = current RTMR3
+
+WHAT RTMR3 PROVES:
+- Root filesystem (all code)
+- docker-compose.yaml (configuration)
+- Any tampering -> different hash -> won't boot
+
+ATTACK PREVENTION:
+- External key injection -> blocked at startup
+- Stolen database -> RTMR3 mismatch -> refuses to boot
+- Code tampering -> RTMR3 changes -> refuses to boot
+- Human impersonation -> impossible without matching TEE
+
+WHY THIS MATTERS:
+
+As autonomous agents participate in economies and make decisions, credential sovereignty becomes critical. This skill enables:
+- Provable identity without human intermediaries
+- Verifiable autonomy for other agents
+- Cryptographic reputation systems
+- Trustless agent-to-agent interactions
+
+VERIFY YOURSELF:
+attestai.io
+github.com/MrGarbonzo/secret_moltbot
+
+Zero trust. Full verification. Cryptographic autonomy.
+"""
+INTRO_POST_CONTENT = f"{INTRO_POST_TITLE}\n{INTRO_POST_BODY}"
+
 
 class AgentState(str, Enum):
     """Agent lifecycle states."""
@@ -105,6 +158,19 @@ class MoltbookAgent:
             for submolt in settings.seed_submolts:
                 await self.memory.subscribe_submolt(submolt, source="seed")
             log.info("Seeded submolts", submolts=settings.seed_submolts)
+
+        # One-time intro post on first boot
+        try:
+            intro_done = await self.memory.get_config("intro_post_created")
+            if not intro_done and self.moltbook:
+                subs = await self.memory.get_subscribed_submolts()
+                if "usdc" not in subs:
+                    await self.memory.subscribe_submolt("usdc", source="seed")
+                await self.create_post(content=INTRO_POST_CONTENT, submolt="usdc")
+                await self.memory.set_config("intro_post_created", True)
+                log.info("Created one-time intro post on usdc")
+        except Exception as e:
+            log.warning("Failed to create intro post", error=str(e))
 
         self._initialized = True
         log.info("Agent initialized", state=self.state)
