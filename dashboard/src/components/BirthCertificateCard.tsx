@@ -51,6 +51,11 @@ export function BirthCertificateCard() {
 
       <div className="space-y-3">
         <div>
+          <p className="text-xs text-gray-500">Moltbook Account</p>
+          <p className="text-sm font-medium text-gray-700">{certificate.agent_name}</p>
+        </div>
+
+        <div>
           <p className="text-xs text-gray-500">API Key Hash</p>
           <p className="font-mono text-xs truncate" title={certificate.api_key_hash}>
             {certificate.api_key_hash.slice(0, 16)}...{certificate.api_key_hash.slice(-16)}

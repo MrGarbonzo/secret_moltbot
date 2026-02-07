@@ -133,6 +133,17 @@ export default function AttestationPage() {
               Cryptographic proof that the Moltbook API key was created inside the TEE during first boot.
             </p>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Moltbook Account</p>
+                <p className="font-medium text-sm">{birthCert.agent_name}</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Description</p>
+                <p className="text-sm text-gray-700">{birthCert.agent_description}</p>
+              </div>
+            </div>
+
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700 mb-1">API Key Hash (SHA-256)</p>
               <p className="font-mono text-xs break-all text-gray-600">
