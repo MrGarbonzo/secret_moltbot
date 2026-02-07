@@ -114,11 +114,13 @@ export interface GeneratedContent {
 
 export interface CpuQuote {
   mrtd: string;
+  mrseam: string;
   rtmr0: string;
   rtmr1: string;
   rtmr2: string;
   rtmr3: string;
-  reportdata: string;
+  tcb_svn: string;
+  raw_quote?: string;
 }
 
 export interface AttestationReport {
@@ -137,12 +139,25 @@ export interface SecretVMAttestation {
 }
 
 export interface SecretAIAttestation {
-  attestation: Record<string, unknown> | null;
+  source?: string;
   service: string;
   model: string;
+  attestation_url?: string;
+  attestation_raw?: string;
+  tls_fingerprint?: string;
+  tls_version?: string;
+  cipher_suite?: [string, string, number];
+  certificate_info?: {
+    subject: string | null;
+    issuer: string | null;
+    notBefore: string | null;
+    notAfter: string | null;
+  };
   verified: boolean;
+  partial?: boolean;
   error?: string;
   note?: string;
+  hint?: string;
   timestamp: string;
 }
 
@@ -153,11 +168,46 @@ export interface AttestationSummary {
   explanation: string;
 }
 
+export interface AttestationBinding {
+  version: string;
+  algorithm: string;
+  secretvm_hash: string;
+  secretai_hash: string;
+  combined_hash: string;
+  timestamp: string;
+  binding_valid: boolean;
+}
+
 export interface AttestationData {
   secretvm: SecretVMAttestation | null;
   secretai: SecretAIAttestation | null;
+  attestation_binding?: AttestationBinding;
   fully_verified: boolean;
+  quality?: string;
   summary?: AttestationSummary;
   error?: string;
   timestamp: string;
+}
+
+export interface BirthCertificateBinding {
+  algorithm: string;
+  input_fields: string[];
+  digest: string;
+}
+
+export interface BirthCertificate {
+  version: string;
+  created_at: string;
+  agent_name: string;
+  agent_description: string;
+  api_key_hash: string;
+  birth_rtmr3: string | null;
+  self_created: boolean;
+  attestation_snapshot: {
+    secretvm: SecretVMAttestation | null;
+    secretai: SecretAIAttestation | null;
+    fully_verified: boolean;
+    quality: string;
+  };
+  binding: BirthCertificateBinding;
 }

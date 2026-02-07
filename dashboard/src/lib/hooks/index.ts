@@ -4,3 +4,4 @@ export { useFeed } from './useFeed';
 export { useMemory } from './useMemory';
 export { useConfig } from './useConfig';
 export { useAttestation } from './useAttestation';
+export { useBirthCertificate } from './useBirthCertificate';

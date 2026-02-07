@@ -1,7 +1,7 @@
 'use client';
 
 import { useStatus } from '@/lib/hooks';
-import { StatusCard, ActivityFeed, AttestationCard } from '@/components';
+import { StatusCard, ActivityFeed, AttestationCard, BirthCertificateCard } from '@/components';
 
 export default function DashboardPage() {
   const { status } = useStatus();
@@ -24,6 +24,7 @@ export default function DashboardPage() {
             <StatusCard />
             <AttestationCard />
           </div>
+          <BirthCertificateCard />
           <ActivityFeed />
         </>
       ) : (

@@ -237,6 +237,21 @@ async def get_attestation():
         )
 
 
+@app.get("/api/birth-certificate")
+async def get_birth_certificate():
+    """
+    Get the agent's birth certificate — cryptographic proof that the
+    Moltbook API key was created inside the TEE.
+    """
+    cert = await agent.memory.get_config("birth_certificate")
+    if not cert:
+        raise HTTPException(
+            status_code=404,
+            detail="No birth certificate found. The agent may not have completed registration yet.",
+        )
+    return cert
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""

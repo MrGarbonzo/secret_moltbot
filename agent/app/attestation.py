@@ -464,32 +464,115 @@ def _get_explanation(secretvm: dict, secretai: dict) -> str:
         )
 
 
+# ============ Birth Certificate ============
+
+
+async def create_birth_certificate(
+    api_key: str,
+    agent_name: str,
+    agent_description: str,
+) -> dict:
+    """
+    Create a one-time cryptographic birth certificate for the agent's API key.
+
+    Captures a snapshot of the TEE attestation state at the moment the key
+    was born inside the enclave.  The raw API key is never stored — only
+    its SHA-256 hash.
+    """
+    created_at = datetime.utcnow().isoformat()
+    api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+    # Capture attestation snapshot at birth
+    attestation = await get_full_attestation()
+
+    # Extract RTMR3 from the SecretVM CPU quote if available
+    birth_rtmr3 = None
+    try:
+        secretvm = attestation.get("secretvm")
+        if secretvm and isinstance(secretvm, dict):
+            cpu_quote = secretvm.get("cpu_quote")
+            if cpu_quote and isinstance(cpu_quote, dict):
+                rtmr3 = cpu_quote.get("rtmr3")
+                if rtmr3:
+                    birth_rtmr3 = rtmr3
+    except Exception:
+        pass
+
+    # Build the attestation snapshot (subset of full attestation)
+    attestation_snapshot = {
+        "secretvm": attestation.get("secretvm"),
+        "secretai": attestation.get("secretai"),
+        "fully_verified": attestation.get("fully_verified", False),
+        "quality": attestation.get("quality", "none"),
+    }
+
+    # Create binding digest over all fields
+    binding_input = {
+        "api_key_hash": api_key_hash,
+        "agent_name": agent_name,
+        "created_at": created_at,
+        "birth_rtmr3": birth_rtmr3,
+        "attestation_snapshot": attestation_snapshot,
+    }
+    canonical = json.dumps(binding_input, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode()).hexdigest()
+
+    return {
+        "version": "1.0",
+        "created_at": created_at,
+        "agent_name": agent_name,
+        "agent_description": agent_description,
+        "api_key_hash": api_key_hash,
+        "birth_rtmr3": birth_rtmr3,
+        "self_created": True,
+        "attestation_snapshot": attestation_snapshot,
+        "binding": {
+            "algorithm": "sha256",
+            "input_fields": [
+                "api_key_hash",
+                "agent_name",
+                "created_at",
+                "birth_rtmr3",
+                "attestation_snapshot",
+            ],
+            "digest": digest,
+        },
+    }
+
+
 # ============ Parsing Helpers ============
 
 def _parse_cpu_quote(html_content: str) -> dict:
     """
     Parse CPU quote data from SecretVM attestation server HTML response.
+    
+    SecretVM format has label on one line, value on next:
+        MRTD:
+        ba87a347454466680bfd267446df89d8117c04ea9f28234dd3d84e1a8a957d5a...
     """
     quote = {
         "mrtd": "",
+        "mrseam": "",
         "rtmr0": "",
         "rtmr1": "",
         "rtmr2": "",
         "rtmr3": "",
-        "reportdata": "",
+        "tcb_svn": "",
     }
 
+    # Pattern: LABEL:\s*\n\s*([hex value on next line])
     patterns = {
-        "mrtd": r"MRTD[:\s]+([a-fA-F0-9]+)",
-        "rtmr0": r"RTMR0[:\s]+([a-fA-F0-9]+)",
-        "rtmr1": r"RTMR1[:\s]+([a-fA-F0-9]+)",
-        "rtmr2": r"RTMR2[:\s]+([a-fA-F0-9]+)",
-        "rtmr3": r"RTMR3[:\s]+([a-fA-F0-9]+)",
-        "reportdata": r"reportdata[:\s]+([a-fA-F0-9]+)",
+        "mrtd": r"MRTD:\s*\n\s*([a-fA-F0-9]+)",
+        "mrseam": r"MRSEAM:\s*\n\s*([a-fA-F0-9]+)",
+        "rtmr0": r"RTMR0:\s*\n\s*([a-fA-F0-9]+)",
+        "rtmr1": r"RTMR1:\s*\n\s*([a-fA-F0-9]+)",
+        "rtmr2": r"RTMR2:\s*\n\s*([a-fA-F0-9]+)",
+        "rtmr3": r"RTMR3:\s*\n\s*([a-fA-F0-9]+)",
+        "tcb_svn": r"TCB_SVN:\s*\n\s*([a-fA-F0-9]+)",
     }
 
     for key, pattern in patterns.items():
-        match = re.search(pattern, html_content, re.IGNORECASE)
+        match = re.search(pattern, html_content, re.IGNORECASE | re.MULTILINE)
         if match:
             quote[key] = match.group(1)
 

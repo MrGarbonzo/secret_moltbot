@@ -67,4 +67,7 @@ export const api = {
 
   // Attestation
   getAttestation: () => fetchApi<import('./types').AttestationData>('/attestation'),
+
+  // Birth Certificate
+  getBirthCertificate: () => fetchApi<import('./types').BirthCertificate>('/birth-certificate'),
 };

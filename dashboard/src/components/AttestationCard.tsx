@@ -26,13 +26,27 @@ export function AttestationCard() {
     );
   }
 
+  const qualityLabel = {
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    none: 'None',
+  }[attestation.quality || 'none'] || 'Unknown';
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>TEE Attestation</CardTitle>
-        <Badge variant={attestation.fully_verified ? 'success' : 'warning'}>
-          {attestation.fully_verified ? 'Fully Verified' : 'Partial'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {attestation.quality && (
+            <Badge variant={attestation.quality === 'high' ? 'success' : 'warning'} size="sm">
+              {qualityLabel}
+            </Badge>
+          )}
+          <Badge variant={attestation.fully_verified ? 'success' : 'warning'}>
+            {attestation.fully_verified ? 'Fully Verified' : 'Partial'}
+          </Badge>
+        </div>
       </CardHeader>
 
       <div className="space-y-4">
@@ -54,17 +68,37 @@ export function AttestationCard() {
             <p className="text-xs text-gray-500">{attestation.secretai?.model || 'N/A'}</p>
           </div>
           <Badge variant={attestation.secretai?.verified ? 'success' : 'warning'} size="sm">
-            {attestation.secretai?.verified ? 'Verified' : 'Unverified'}
+            {attestation.secretai?.verified ? 'Verified' : attestation.secretai?.partial ? 'Partial' : 'Unverified'}
           </Badge>
         </div>
 
-        {/* Code Hash */}
+        {/* Code Hash (RTMR3) — show when VM is verified */}
         {attestation.secretvm?.cpu_quote?.rtmr3 && (
           <div>
             <p className="text-xs text-gray-500">Code Hash (RTMR3)</p>
             <p className="font-mono text-xs truncate" title={attestation.secretvm.cpu_quote.rtmr3}>
-              {attestation.secretvm.cpu_quote.rtmr3}
+              {attestation.secretvm.cpu_quote.rtmr3.slice(0, 16)}...{attestation.secretvm.cpu_quote.rtmr3.slice(-16)}
             </p>
+          </div>
+        )}
+
+        {/* TLS Fingerprint — show when SecretAI is verified (especially when VM is not) */}
+        {attestation.secretai?.tls_fingerprint && (
+          <div>
+            <p className="text-xs text-gray-500">SecretAI TLS Fingerprint</p>
+            <p className="font-mono text-xs truncate" title={attestation.secretai.tls_fingerprint}>
+              {attestation.secretai.tls_fingerprint.slice(0, 16)}...{attestation.secretai.tls_fingerprint.slice(-16)}
+            </p>
+          </div>
+        )}
+
+        {/* Binding Status */}
+        {attestation.attestation_binding && (
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Cryptographic Binding</p>
+            <Badge variant={attestation.attestation_binding.binding_valid ? 'success' : 'danger'} size="sm">
+              {attestation.attestation_binding.binding_valid ? 'Valid' : 'Invalid'}
+            </Badge>
           </div>
         )}
 
@@ -73,11 +107,15 @@ export function AttestationCard() {
           <div className={`text-xs p-2 rounded ${
             attestation.fully_verified
               ? 'bg-green-50 text-green-700'
-              : 'bg-yellow-50 text-yellow-700'
+              : attestation.secretai?.verified
+                ? 'bg-blue-50 text-blue-700'
+                : 'bg-yellow-50 text-yellow-700'
           }`}>
             {attestation.summary.end_to_end_privacy === 'guaranteed'
               ? 'End-to-end privacy guaranteed'
-              : 'Partial verification - see details'}
+              : attestation.secretai?.verified
+                ? 'LLM inference verified — VM attestation requires SecretVM'
+                : 'Partial verification - see details'}
           </div>
         )}
       </div>

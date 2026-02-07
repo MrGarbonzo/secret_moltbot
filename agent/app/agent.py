@@ -163,6 +163,21 @@ class MoltbookAgent:
             await self.memory.set_config("moltbook_verified", False)
             await self.memory.set_config("moltbook_registered_at", datetime.utcnow().isoformat())
 
+            # Create birth certificate
+            from .attestation import create_birth_certificate
+            try:
+                birth_cert = await create_birth_certificate(
+                    api_key=api_key,
+                    agent_name=settings.agent_name,
+                    agent_description=settings.agent_description,
+                )
+                await self.memory.set_config("birth_certificate", birth_cert)
+                log.info("Birth certificate created",
+                         api_key_hash=birth_cert["api_key_hash"][:16] + "...",
+                         quality=birth_cert["attestation_snapshot"]["quality"])
+            except Exception as e:
+                log.warning("Failed to create birth certificate", error=str(e))
+
             self._create_client(api_key)
 
             self.state = AgentState.REGISTERED

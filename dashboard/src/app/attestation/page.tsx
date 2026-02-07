@@ -1,10 +1,11 @@
 'use client';
 
-import { useAttestation } from '@/lib/hooks';
+import { useAttestation, useBirthCertificate } from '@/lib/hooks';
 import { Card, CardHeader, CardTitle, Badge, Spinner, Button } from '@/components/ui';
 
 export default function AttestationPage() {
   const { attestation, isLoading, isError, refresh } = useAttestation();
+  const { certificate: birthCert, notFound: birthCertNotFound } = useBirthCertificate();
 
   if (isLoading) {
     return (
@@ -28,6 +29,20 @@ export default function AttestationPage() {
     );
   }
 
+  const qualityColor = {
+    high: 'text-green-600',
+    medium: 'text-yellow-600',
+    low: 'text-orange-600',
+    none: 'text-red-600',
+  }[attestation.quality || 'none'] || 'text-gray-600';
+
+  const qualityBg = {
+    high: 'bg-green-50 border-green-200',
+    medium: 'bg-yellow-50 border-yellow-200',
+    low: 'bg-orange-50 border-orange-200',
+    none: 'bg-red-50 border-red-200',
+  }[attestation.quality || 'none'] || 'bg-gray-50 border-gray-200';
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -35,18 +50,30 @@ export default function AttestationPage() {
           <h1 className="text-2xl font-bold text-gray-900">TEE Attestation</h1>
           <p className="text-gray-500">Verify end-to-end privacy guarantees</p>
         </div>
-        <Button onClick={() => refresh()} variant="secondary">
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400">
+            {new Date(attestation.timestamp).toLocaleString()}
+          </span>
+          <Button onClick={() => refresh()} variant="secondary">
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Overall Status */}
       <Card>
         <CardHeader>
           <CardTitle>Verification Status</CardTitle>
-          <Badge variant={attestation.fully_verified ? 'success' : 'warning'} size="lg">
-            {attestation.fully_verified ? 'Fully Verified' : 'Partial Verification'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {attestation.quality && (
+              <Badge variant={attestation.quality === 'high' ? 'success' : 'warning'} size="sm">
+                {attestation.quality.toUpperCase()}
+              </Badge>
+            )}
+            <Badge variant={attestation.fully_verified ? 'success' : 'warning'} size="lg">
+              {attestation.fully_verified ? 'Fully Verified' : 'Partial Verification'}
+            </Badge>
+          </div>
         </CardHeader>
 
         {attestation.summary && (
@@ -83,6 +110,104 @@ export default function AttestationPage() {
         </div>
       </Card>
 
+      {/* Birth Certificate */}
+      {birthCert && !birthCertNotFound && (
+        <Card>
+          <CardHeader>
+            <CardTitle>API Key Birth Certificate</CardTitle>
+            <div className="flex items-center gap-2">
+              {birthCert.self_created && (
+                <Badge variant="success" size="sm">Self-Created</Badge>
+              )}
+              <Badge
+                variant={birthCert.attestation_snapshot.quality === 'high' ? 'success' : birthCert.attestation_snapshot.quality === 'none' ? 'danger' : 'warning'}
+                size="sm"
+              >
+                {birthCert.attestation_snapshot.quality.toUpperCase()} at birth
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Cryptographic proof that the Moltbook API key was created inside the TEE during first boot.
+            </p>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">API Key Hash (SHA-256)</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {birthCert.api_key_hash}
+              </p>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-700 mb-1">Birth RTMR3 (Code Hash at Key Creation)</p>
+              <p className="font-mono text-xs break-all text-blue-600">
+                {birthCert.birth_rtmr3 || 'N/A (not running in SecretVM at birth)'}
+              </p>
+              {birthCert.birth_rtmr3 && attestation?.secretvm?.cpu_quote?.rtmr3 && (
+                <div className="mt-2">
+                  {birthCert.birth_rtmr3 === attestation.secretvm.cpu_quote.rtmr3 ? (
+                    <p className="text-xs text-green-600 font-medium">
+                      Matches current RTMR3 — code unchanged since key birth
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-600 font-medium">
+                      Does NOT match current RTMR3 — code has changed since key birth
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Self Created</p>
+                <p className="font-medium text-sm">{birthCert.self_created ? 'Yes' : 'No'}</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Birth Timestamp</p>
+                <p className="text-sm text-gray-700">
+                  {new Date(birthCert.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">Binding Digest ({birthCert.binding.algorithm})</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {birthCert.binding.digest}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Over: {birthCert.binding.input_fields.join(', ')}
+              </p>
+            </div>
+
+            <details className="p-3 bg-gray-50 rounded-lg">
+              <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+                Attestation snapshot at birth
+              </summary>
+              <pre className="text-xs text-gray-600 overflow-auto max-h-64 mt-2 font-mono break-all whitespace-pre-wrap">
+                {JSON.stringify(birthCert.attestation_snapshot, null, 2)}
+              </pre>
+            </details>
+          </div>
+        </Card>
+      )}
+
+      {birthCertNotFound && (
+        <Card>
+          <CardHeader>
+            <CardTitle>API Key Birth Certificate</CardTitle>
+            <Badge variant="warning" size="sm">Unavailable</Badge>
+          </CardHeader>
+          <p className="text-sm text-gray-500">
+            No birth certificate found. The agent may not have completed registration yet,
+            or it was registered before birth certificates were implemented.
+          </p>
+        </Card>
+      )}
+
       {/* SecretVM Attestation */}
       <Card>
         <CardHeader>
@@ -105,47 +230,55 @@ export default function AttestationPage() {
             </p>
 
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-1">MRTD (Firmware Hash)</p>
+              <p className="text-sm font-medium text-gray-700 mb-1">TCB_SVN (TCB Security Version)</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {attestation.secretvm.cpu_quote.tcb_svn || 'N/A'}
+              </p>
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">MRSEAM (TDX Module Hash)</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {attestation.secretvm.cpu_quote.mrseam || 'N/A'}
+              </p>
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">MRTD (TD Measurement)</p>
               <p className="font-mono text-xs break-all text-gray-600">
                 {attestation.secretvm.cpu_quote.mrtd || 'N/A'}
               </p>
             </div>
 
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-1">RTMR0 (Configuration)</p>
+              <p className="text-sm font-medium text-gray-700 mb-1">RTMR0 (Firmware Configuration)</p>
               <p className="font-mono text-xs break-all text-gray-600">
                 {attestation.secretvm.cpu_quote.rtmr0 || 'N/A'}
               </p>
             </div>
 
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-1">RTMR1 (Linux Kernel)</p>
+              <p className="text-sm font-medium text-gray-700 mb-1">RTMR1 (OS Kernel)</p>
               <p className="font-mono text-xs break-all text-gray-600">
                 {attestation.secretvm.cpu_quote.rtmr1 || 'N/A'}
               </p>
             </div>
 
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-1">RTMR2 (Application)</p>
+              <p className="text-sm font-medium text-gray-700 mb-1">RTMR2 (OS Applications)</p>
               <p className="font-mono text-xs break-all text-gray-600">
                 {attestation.secretvm.cpu_quote.rtmr2 || 'N/A'}
               </p>
             </div>
 
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm font-medium text-blue-700 mb-1">RTMR3 (Root FS + Docker)</p>
+              <p className="text-sm font-medium text-blue-700 mb-1">RTMR3 (Root FS + docker-compose.yml)</p>
               <p className="font-mono text-xs break-all text-blue-600">
                 {attestation.secretvm.cpu_quote.rtmr3 || 'N/A'}
               </p>
               <p className="text-xs text-blue-500 mt-2">
                 This hash verifies the exact code running matches the published source.
-              </p>
-            </div>
-
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-1">Report Data (TLS Fingerprint)</p>
-              <p className="font-mono text-xs break-all text-gray-600">
-                {attestation.secretvm.cpu_quote.reportdata || 'N/A'}
+                Clone the repo, build the image, and compare this hash.
               </p>
             </div>
           </div>
@@ -177,8 +310,8 @@ export default function AttestationPage() {
       <Card>
         <CardHeader>
           <CardTitle>SecretAI (LLM Inference)</CardTitle>
-          <Badge variant={attestation.secretai?.verified ? 'success' : 'warning'}>
-            {attestation.secretai?.verified ? 'Verified' : 'Unverified'}
+          <Badge variant={attestation.secretai?.verified ? 'success' : attestation.secretai?.partial ? 'warning' : 'warning'}>
+            {attestation.secretai?.verified ? 'Verified' : attestation.secretai?.partial ? 'Partial' : 'Unverified'}
           </Badge>
         </CardHeader>
 
@@ -194,6 +327,93 @@ export default function AttestationPage() {
             </div>
           </div>
 
+          {attestation.secretai?.attestation_url && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">Attestation Endpoint</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {attestation.secretai.attestation_url}
+              </p>
+            </div>
+          )}
+
+          {attestation.secretai?.tls_fingerprint && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-700 mb-1">TLS Certificate Fingerprint (SHA-256)</p>
+              <p className="font-mono text-xs break-all text-blue-600">
+                {attestation.secretai.tls_fingerprint}
+              </p>
+              <p className="text-xs text-blue-500 mt-2">
+                This fingerprint identifies the exact TLS certificate presented by the SecretAI service.
+                Compare with the certificate you receive when connecting directly.
+              </p>
+            </div>
+          )}
+
+          {(attestation.secretai?.tls_version || attestation.secretai?.cipher_suite) && (
+            <div className="grid grid-cols-2 gap-4">
+              {attestation.secretai.tls_version && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700 mb-1">TLS Version</p>
+                  <p className="font-mono text-xs text-gray-600">{attestation.secretai.tls_version}</p>
+                </div>
+              )}
+              {attestation.secretai.cipher_suite && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Cipher Suite</p>
+                  <p className="font-mono text-xs text-gray-600">
+                    {attestation.secretai.cipher_suite[0]}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {attestation.secretai.cipher_suite[2]}-bit
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {attestation.secretai?.certificate_info && (
+            attestation.secretai.certificate_info.subject || attestation.secretai.certificate_info.issuer
+          ) && (
+            <div className="p-3 bg-gray-50 rounded-lg space-y-2">
+              <p className="text-sm font-medium text-gray-700">Certificate Details</p>
+              {attestation.secretai.certificate_info.subject && (
+                <div>
+                  <p className="text-xs text-gray-500">Subject</p>
+                  <p className="font-mono text-xs text-gray-600">{attestation.secretai.certificate_info.subject}</p>
+                </div>
+              )}
+              {attestation.secretai.certificate_info.issuer && (
+                <div>
+                  <p className="text-xs text-gray-500">Issuer</p>
+                  <p className="font-mono text-xs text-gray-600">{attestation.secretai.certificate_info.issuer}</p>
+                </div>
+              )}
+              {attestation.secretai.certificate_info.notBefore && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-gray-500">Valid From</p>
+                    <p className="text-xs text-gray-600">{attestation.secretai.certificate_info.notBefore}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Valid Until</p>
+                    <p className="text-xs text-gray-600">{attestation.secretai.certificate_info.notAfter}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {attestation.secretai?.attestation_raw && (
+            <details className="p-3 bg-gray-50 rounded-lg">
+              <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+                CPU Attestation Quote (raw hex)
+              </summary>
+              <pre className="text-xs text-gray-600 overflow-auto max-h-48 mt-2 font-mono break-all whitespace-pre-wrap">
+                {attestation.secretai.attestation_raw}
+              </pre>
+            </details>
+          )}
+
           {attestation.secretai?.error && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">{attestation.secretai.error}</p>
@@ -203,15 +423,6 @@ export default function AttestationPage() {
           {attestation.secretai?.note && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">{attestation.secretai.note}</p>
-            </div>
-          )}
-
-          {attestation.secretai?.attestation && (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-2">Attestation Data</p>
-              <pre className="text-xs text-gray-600 overflow-auto max-h-48">
-                {JSON.stringify(attestation.secretai.attestation, null, 2)}
-              </pre>
             </div>
           )}
 
@@ -226,6 +437,61 @@ export default function AttestationPage() {
           </div>
         </div>
       </Card>
+
+      {/* Attestation Binding */}
+      {attestation.attestation_binding && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cryptographic Binding</CardTitle>
+            <Badge variant={attestation.attestation_binding.binding_valid ? 'success' : 'danger'}>
+              {attestation.attestation_binding.binding_valid ? 'Valid' : 'Invalid'}
+            </Badge>
+          </CardHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              SHA-256 hashes linking both attestations together, proving they were captured at the same time.
+            </p>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">SecretVM Hash</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {attestation.attestation_binding.secretvm_hash}
+              </p>
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-1">SecretAI Hash</p>
+              <p className="font-mono text-xs break-all text-gray-600">
+                {attestation.attestation_binding.secretai_hash}
+              </p>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-700 mb-1">Combined Binding Hash</p>
+              <p className="font-mono text-xs break-all text-blue-600">
+                {attestation.attestation_binding.combined_hash}
+              </p>
+              <p className="text-xs text-blue-500 mt-2">
+                SHA-256 of (SecretVM hash + SecretAI hash + timestamp). Proves both attestations are bound together.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Algorithm</p>
+                <p className="font-mono text-xs text-gray-600">{attestation.attestation_binding.algorithm}</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Binding Timestamp</p>
+                <p className="text-xs text-gray-600">
+                  {new Date(attestation.attestation_binding.timestamp).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* How to Verify */}
       <Card>
@@ -255,7 +521,11 @@ export default function AttestationPage() {
             </li>
             <li>
               <strong>TLS binding:</strong> Verify the TLS fingerprint matches the
-              certificate presented by this server
+              certificate presented by the SecretAI service
+            </li>
+            <li>
+              <strong>Cryptographic binding:</strong> The binding hash proves both attestations
+              (VM + AI) were captured together and neither has been tampered with
             </li>
           </ol>
 
